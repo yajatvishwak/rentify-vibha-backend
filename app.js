@@ -89,7 +89,18 @@ app.post("/add-listing" , (req, res) => {
     res.send({ isCreated: false, code: "err" });
   }
 })
+app.post("/get-listing" , (req, res) => {
+  
+  const { lid } = req.body;
+    const select = db.prepare(
+        "SELECT * from listings where lid=@lid"
+      ).get({lid});
+      if (select) {
+        return res.send({ code: "suc", item: select });
+      }
+})
 
 app.listen(5000, () => { 
   console.log("Server online at 5000");
 });
+
