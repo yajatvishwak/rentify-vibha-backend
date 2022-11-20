@@ -1,7 +1,8 @@
 {
 
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "better-sqlite3": "^7.6.2",
