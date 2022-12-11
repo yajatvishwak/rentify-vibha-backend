@@ -71,7 +71,10 @@ app.post("/editprofile", (req, res) => {
     )
     .run({ username, name, password, uid });
   if (update) {
-    return res.send({ code: "success", message: "Saved" });
+    return res.send({
+      code: "success",
+      message: "Saved",
+    });
   } else {
     res.send({ code: "err", message: "could not update" });
   }
