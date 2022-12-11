@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 
 app.post("/signup", async (req, res) => {
   const { username, password, name } = req.body;
-  console.log({ username, password, name });
+  console.log({ username, password, name, phonenumber });
   // check if username exists
   const usernameExists = db
     .prepare("SELECT uid from users where username=@username")
@@ -26,9 +26,9 @@ app.post("/signup", async (req, res) => {
   }
 
   const insert = db.prepare(
-    "INSERT INTO users (username, name, password) VALUES (@username , @name, @password)"
+    "INSERT INTO users (username, name, password , phonenumber) VALUES (@username , @name, @password,@phonenumber)"
   );
-  let info = insert.run({ username, name, password });
+  let info = insert.run({ username, name, password, phonenumber });
   console.log(info);
   if (info) {
     res.send({ isCreated: true, code: "suc", uid: info.lastInsertRowid });
@@ -49,6 +49,7 @@ app.post("/login", (req, res) => {
         uid: info.uid,
         code: "suc",
         name: info.name,
+        phonenumber: info.phonenumber,
       });
     }
   }
@@ -56,7 +57,7 @@ app.post("/login", (req, res) => {
 });
 
 app.post("/editprofile", (req, res) => {
-  const { username, password, name, uid } = req.body;
+  const { username, password, name, phonenumber, uid } = req.body;
   // check if username exists
   const usernameExists = db.prepare(
     "SELECT uid from users where username=@username"
@@ -67,9 +68,9 @@ app.post("/editprofile", (req, res) => {
 
   const update = db
     .prepare(
-      "UPDATE users SET username=@username, password=@password, name=@name WHERE uid=@uid"
+      "UPDATE users SET username=@username, password=@password, name=@name , phonenumber=@phonenumber  WHERE uid=@uid"
     )
-    .run({ username, name, password, uid });
+    .run({ username, name, password, phonenumber, uid });
   if (update) {
     return res.send({
       code: "success",
@@ -102,16 +103,24 @@ app.post("/add-listing", (req, res) => {
 });
 app.post("/get-listing", (req, res) => {
   const { lid } = req.body;
-  const select = db
-    .prepare("SELECT * from listings where lid=@lid")
-    .get({ lid });
+  let select = db.prepare("SELECT * from listings where lid=@lid").get({ lid });
+  const select2 = db
+    .prepare("SELECT * from users where uid=@uid")
+    .get({ uid: select.uid });
+
   if (select) {
+    select["user"] = select2;
     return res.send({ code: "suc", item: select });
   }
 });
 app.post("/get-all-listings", (req, res) => {
-  const { lid } = req.body;
-  const select = db.prepare("SELECT * from listings").all({ lid });
+  const select = db.prepare("SELECT * from listings").all();
+  for (const item of select) {
+    const select2 = db
+      .prepare("SELECT * from users where uid=@uid")
+      .get({ uid: item.uid });
+    item["user"] = select2;
+  }
   if (select) {
     return res.send({ code: "suc", item: select });
   }
@@ -139,19 +148,52 @@ app.post("/add-item-to-rent", (req, res) => {
 app.post("/get-profile", (req, res) => {
   try {
     const { uid } = req.body;
-    let listingsOfUser = db
+    let useritemsq = db
+      .prepare("SELECT * from listings where uid=@uid")
+      .all({ uid });
+    let useritems = [];
+    for (const { lid } of useritemsq) {
+      useritems.push(lid);
+    }
+
+    let rentedByUser = db
       .prepare("SELECT * from user_renting where uid=@uid")
       .all({ uid });
     let popListing = [];
-    for (const { lid } of listingsOfUser) {
+    for (const { lid } of rentedByUser) {
       console.log(lid);
       let listing = db
         .prepare("SELECT * from listings WHERE lid=@lid")
         .get({ lid });
       popListing.push(listing);
     }
+    let otherusers = [];
+    for (const lid of useritems) {
+      let rentedByOtherUsers = db
+        .prepare("SELECT * from user_renting where lid=@lid")
+        .all({ lid });
+      for (const otu of rentedByOtherUsers) {
+        let us = db
+          .prepare("SELECT * from users WHERE uid=@uid")
+          .get({ uid: otu.uid });
+        let ls = db
+          .prepare("SELECT * from listings WHERE lid=@lid")
+          .get({ lid });
+        console.log(ls, lid);
+        otherusers.push({
+          listingname: ls.title,
+          rentingusername: us.name,
+          rentinguserph: us.phonenumber,
+          listingid: ls.lid,
+        });
+      }
+    }
 
-    res.send({ code: "suc", userrenting: popListing });
+    res.send({
+      code: "suc",
+      userrenting: popListing,
+      otheruserrentingyourproducts: otherusers,
+    });
   } catch (error) {
     console.log(error);
     res.send({ code: "lol", message: "item could not be retrieved" });

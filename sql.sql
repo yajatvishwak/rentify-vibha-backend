@@ -3,5 +3,6 @@ CREATE TABLE users(
     uid INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     username TEXT,
     password TEXT,
-    name TEXT
+    name TEXT,
+    phonenumber TEXT,
 );
