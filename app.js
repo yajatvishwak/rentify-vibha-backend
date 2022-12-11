@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/signup", async (req, res) => {
-  const { username, password, name } = req.body;
+  const { username, password, name, phonenumber } = req.body;
   console.log({ username, password, name, phonenumber });
   // check if username exists
   const usernameExists = db
@@ -38,10 +38,9 @@ app.post("/signup", async (req, res) => {
 });
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  const select = db.prepare(
-    "SELECT username, password,uid, name from users where username=@username"
-  );
+  const select = db.prepare("SELECT *  from users where username=@username");
   let info = select.get({ username });
+  console.log(info);
   if (info) {
     if (info.username === username && info.password === password) {
       return res.send({
@@ -55,7 +54,11 @@ app.post("/login", (req, res) => {
   }
   return res.send({ loggedin: false, code: "err" });
 });
-
+const path = require("path");
+app.get("/getpic/:id", (req, res) => {
+  console.log(path.join(req.params.id + ".jpg"));
+  res.sendFile(path.join(__dirname, req.params.id));
+});
 app.post("/editprofile", (req, res) => {
   const { username, password, name, phonenumber, uid } = req.body;
   // check if username exists
@@ -114,6 +117,10 @@ app.post("/get-listing", (req, res) => {
   }
 });
 app.post("/get-all-listings", (req, res) => {
+  const { uid } = req.body;
+  let rented = db.prepare("SELECT lid from user_renting").all();
+  rented = rented.map((i) => i.lid);
+  console.log(rented);
   const select = db.prepare("SELECT * from listings").all();
   for (const item of select) {
     const select2 = db
@@ -121,8 +128,16 @@ app.post("/get-all-listings", (req, res) => {
       .get({ uid: item.uid });
     item["user"] = select2;
   }
+  let fin = [];
+  for (let item of select) {
+    if (uid === item.uid) continue;
+    if (rented.indexOf(item.lid) < 0) {
+      fin.push(item);
+    }
+  }
+  // console.log(fin);
   if (select) {
-    return res.send({ code: "suc", item: select });
+    return res.send({ code: "suc", item: fin });
   }
 });
 
